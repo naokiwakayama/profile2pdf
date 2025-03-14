@@ -66,11 +66,14 @@ export class FirecrawlService {
         limit: 10, // プロフィールページと最近の投稿を取得するのに十分
         scrapeOptions: {
           formats: ['markdown', 'html'],
-          extractors: [
-            { name: 'profile_meta', selector: 'head meta', type: 'meta' },
-            { name: 'profile_header', selector: '[data-testid="UserName"], [data-testid="UserDescription"], [data-testid="UserProfileHeader"]', type: 'text' },
-            { name: 'profile_stats', selector: '[data-testid="UserProfileStats"]', type: 'text' },
-            { name: 'tweets', selector: '[data-testid="tweet"]', type: 'text' },
+          // 'extractors' プロパティは CrawlScrapeOptions タイプには存在しないため削除
+          // 代わりに CSS セレクタを使用して必要なデータを特定
+          cssSelectors: [
+            '[data-testid="UserName"]', 
+            '[data-testid="UserDescription"]', 
+            '[data-testid="UserProfileHeader"]',
+            '[data-testid="UserProfileStats"]',
+            '[data-testid="tweet"]'
           ]
         }
       }) as CrawlResponse;
