@@ -1,22 +1,35 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import ProfileForm from '@/components/ProfileForm';
+import ApiKeyForm from '@/components/ApiKeyForm';
 import LoadingState from '@/components/LoadingState';
 import { fetchProfileData } from '@/utils/profileFetcher';
+import { FirecrawlService } from '@/utils/FirecrawlService';
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // APIキーが設定されているか確認
+    const apiKey = FirecrawlService.getApiKey();
+    setHasApiKey(!!apiKey);
+  }, []);
+
+  const handleApiKeySaved = () => {
+    setHasApiKey(true);
+  };
 
   const handleProfileSubmit = async (url: string) => {
     setIsLoading(true);
     
     try {
-      // This would be replaced with actual profile fetching in a full implementation
+      // プロフィール情報を取得
       const profileData = await fetchProfileData(url);
       
       // Store the data in sessionStorage to persist between pages
@@ -65,7 +78,11 @@ const Index = () => {
           className="w-full max-w-2xl"
         >
           <Card className="glass p-8 rounded-xl">
-            <ProfileForm onSubmit={handleProfileSubmit} />
+            {!hasApiKey ? (
+              <ApiKeyForm onApiKeySaved={handleApiKeySaved} />
+            ) : (
+              <ProfileForm onSubmit={handleProfileSubmit} />
+            )}
           </Card>
         </motion.div>
       )}

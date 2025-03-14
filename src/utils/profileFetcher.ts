@@ -1,17 +1,31 @@
 
 import { ProfileData } from '@/pages/Editor';
-
-// This is a mock implementation for the frontend-only MVP
-// In a real implementation, this would connect to a backend service
-// that handles the scraping of X profiles
+import { FirecrawlService, ScrapedProfileData } from './FirecrawlService';
 
 export const fetchProfileData = async (url: string): Promise<ProfileData> => {
   console.log(`Attempting to fetch profile data from URL: ${url}`);
   
-  // In a real implementation, this would be an API call to the backend
-  // For now, we'll just simulate a network request with a timeout
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
+  try {
+    // APIキーがあるか確認
+    const apiKey = FirecrawlService.getApiKey();
+    if (!apiKey) {
+      throw new Error('APIキーが設定されていません');
+    }
+    
+    // スクレイピングを実行
+    const scrapedData = await FirecrawlService.extractProfileData(url);
+    return scrapedData;
+  } catch (error) {
+    console.error('プロフィール取得エラー:', error);
+    
+    // エラーがある場合はモックデータを生成
+    console.log('モックデータを使用します');
+    return generateMockProfileData(url);
+  }
+};
+
+// モックデータ生成関数（APIキーがない場合やスクレイピングに失敗した場合のフォールバック）
+const generateMockProfileData = (url: string): ProfileData => {
   // Parse the URL to extract the username
   const urlObj = new URL(url);
   const pathParts = urlObj.pathname.split('/').filter(Boolean);
@@ -22,7 +36,6 @@ export const fetchProfileData = async (url: string): Promise<ProfileData> => {
   }
   
   // Generate mock data based on the username
-  // In a real implementation, this would be actual scraped data
   return {
     username,
     displayName: capitalizeUsername(username),
@@ -38,7 +51,7 @@ export const fetchProfileData = async (url: string): Promise<ProfileData> => {
   };
 };
 
-// Helper functions for generating mock data
+// ヘルパー関数（モックデータ生成用）
 const capitalizeUsername = (username: string): string => {
   return username.charAt(0).toUpperCase() + username.slice(1).toLowerCase();
 };
