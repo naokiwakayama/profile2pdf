@@ -66,9 +66,9 @@ export class FirecrawlService {
         limit: 10, // プロフィールページと最近の投稿を取得するのに十分
         scrapeOptions: {
           formats: ['markdown', 'html'],
-          // 'extractors' プロパティは CrawlScrapeOptions タイプには存在しないため削除
-          // 代わりに CSS セレクタを使用して必要なデータを特定
-          cssSelectors: [
+          // Firecrawl JS の CrawlScrapeOptions には cssSelectors がないので、
+          // selectors プロパティを使用します
+          selectors: [
             '[data-testid="UserName"]', 
             '[data-testid="UserDescription"]', 
             '[data-testid="UserProfileHeader"]',
