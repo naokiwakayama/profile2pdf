@@ -73,14 +73,7 @@ export class FirecrawlService {
       const crawlResponse = await this.firecrawlApp.crawlUrl(url, {
         limit: 10, // プロフィールページと最近の投稿を取得するのに十分
         scrapeOptions: {
-          formats: ['markdown', 'html'],
-          selectors: [
-            '[data-testid="UserName"]', 
-            '[data-testid="UserDescription"]', 
-            '[data-testid="UserProfileHeader"]',
-            '[data-testid="UserProfileStats"]',
-            '[data-testid="tweet"]'
-          ]
+          formats: ['markdown', 'html']
         }
       }) as CrawlResponse;
 
@@ -112,7 +105,7 @@ export class FirecrawlService {
       const crawlResponse = await this.firecrawlApp.crawlUrl(url, {
         limit: 5, // 参考URLのページを取得するのに十分
         scrapeOptions: {
-          formats: ['markdown', 'html'],
+          formats: ['markdown', 'html']
         }
       }) as CrawlResponse;
 
@@ -349,3 +342,7 @@ export class FirecrawlService {
     return [...new Set([...extractedSkills, ...techHashtags])].slice(0, 15); // 重複を削除して最大15個まで
   }
 }
+
+
+
+
