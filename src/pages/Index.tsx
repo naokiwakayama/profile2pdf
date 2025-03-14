@@ -25,15 +25,16 @@ const Index = () => {
     setHasApiKey(true);
   };
 
-  const handleProfileSubmit = async (url: string) => {
+  const handleProfileSubmit = async (urls: {xProfileUrl: string, referenceUrls: string[]}) => {
     setIsLoading(true);
     
     try {
       // プロフィール情報を取得
-      const profileData = await fetchProfileData(url);
+      const { profileData, referenceData } = await fetchProfileData(urls.xProfileUrl, urls.referenceUrls);
       
       // Store the data in sessionStorage to persist between pages
       sessionStorage.setItem('profileData', JSON.stringify(profileData));
+      sessionStorage.setItem('referenceData', JSON.stringify(referenceData));
       
       // Show success notification
       toast.success("プロフィール情報を取得しました");
@@ -64,7 +65,7 @@ const Index = () => {
           職務経歴書ジェネレーター
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          Xのプロフィールから自動的に職務経歴書を生成し、編集・PDFとしてダウンロードできます。
+          Xのプロフィールと参考URLから自動的に職務経歴書を生成し、編集・PDFとしてダウンロードできます。
         </p>
       </motion.div>
 

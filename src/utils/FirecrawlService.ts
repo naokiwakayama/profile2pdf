@@ -1,4 +1,3 @@
-
 import FirecrawlApp from '@mendable/firecrawl-js';
 
 interface ErrorResponse {
@@ -21,6 +20,15 @@ export interface ScrapedProfileData {
     text: string;
     date: string;
   }[];
+}
+
+export interface ScrapedReferenceData {
+  url: string;
+  title: string;
+  content: string;
+  keywords: string[];
+  extractedSkills: string[];
+  lastScraped: string;
 }
 
 interface CrawlStatusResponse {
@@ -66,8 +74,6 @@ export class FirecrawlService {
         limit: 10, // プロフィールページと最近の投稿を取得するのに十分
         scrapeOptions: {
           formats: ['markdown', 'html'],
-          // Firecrawl JS の CrawlScrapeOptions には cssSelectors がないので、
-          // selectors プロパティを使用します
           selectors: [
             '[data-testid="UserName"]', 
             '[data-testid="UserDescription"]', 
@@ -88,6 +94,43 @@ export class FirecrawlService {
       console.error('スクレイピングエラー:', error);
       throw new Error('プロフィール取得中にエラーが発生しました');
     }
+  }
+
+  static async extractReferenceData(url: string): Promise<ScrapedReferenceData> {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('APIキーが設定されていません');
+    }
+
+    if (!this.firecrawlApp) {
+      this.firecrawlApp = new FirecrawlApp({ apiKey });
+    }
+
+    try {
+      console.log(`参考URLをスクレイピング中: ${url}`);
+      
+      const crawlResponse = await this.firecrawlApp.crawlUrl(url, {
+        limit: 5, // 参考URLのページを取得するのに十分
+        scrapeOptions: {
+          formats: ['markdown', 'html'],
+        }
+      }) as CrawlResponse;
+
+      if (!crawlResponse.success) {
+        throw new Error(`スクレイピングに失敗しました: ${(crawlResponse as ErrorResponse).error}`);
+      }
+
+      // スクレイピングしたデータから必要な情報を抽出
+      return this.parseReferenceData(crawlResponse.data, url);
+    } catch (error) {
+      console.error('スクレイピングエラー:', error);
+      throw new Error('参考URL取得中にエラーが発生しました');
+    }
+  }
+  
+  static isTwitterOrXUrl(url: string): boolean {
+    const regex = /^https?:\/\/(www\.)?(twitter|x)\.com\/[a-zA-Z0-9_]+\/?$/;
+    return regex.test(url);
   }
 
   private static parseProfileData(scrapedData: any[], url: string): ScrapedProfileData {
@@ -199,6 +242,62 @@ export class FirecrawlService {
       followingCount,
       skills,
       recentPosts: recentPosts.slice(0, 10) // 最新10件のみ使用
+    };
+  }
+
+  private static parseReferenceData(scrapedData: any[], url: string): ScrapedReferenceData {
+    let title = '';
+    let content = '';
+    const extractedSkills: string[] = [];
+    let keywords: string[] = [];
+    
+    try {
+      // ページのタイトルを取得
+      const titleData = scrapedData.find(item => item.name === 'title');
+      if (titleData?.data) {
+        title = titleData.data.toString();
+      }
+      
+      // ページの本文を取得
+      const mainContentData = scrapedData.find(item => item.name === 'main_content' || item.name === 'body');
+      if (mainContentData?.data) {
+        content = mainContentData.data.toString().substring(0, 5000); // 最初の5000文字を使用
+      }
+      
+      // メタデータからキーワードを取得
+      const metaKeywordsData = scrapedData.find(item => item.name === 'meta_keywords');
+      if (metaKeywordsData?.data) {
+        keywords = metaKeywordsData.data.toString().split(',').map((k: string) => k.trim());
+      }
+      
+      // 本文からスキルを抽出
+      const skillKeywords = [
+        'JavaScript', 'TypeScript', 'React', 'Vue.js', 'Angular', 'Node.js',
+        'PHP', 'Python', 'Ruby', 'Java', 'C#', 'Swift',
+        'HTML', 'CSS', 'Sass', 'UI/UX', 'Figma', 'Adobe XD',
+        'SQL', 'MongoDB', 'Firebase', 'AWS', 'Azure', 'GCP',
+        'Docker', 'Kubernetes', 'CI/CD', 'Git', 'Agile', 'Scrum',
+        'プロジェクト管理', 'マーケティング', 'セールス', 'カスタマーサポート',
+        'データ分析', '機械学習', 'AI', 'ブロックチェーン',
+        'SEO', 'SEM', 'コンテンツマーケティング', 'SNSマーケティング'
+      ];
+      
+      skillKeywords.forEach(skill => {
+        if (content.toLowerCase().includes(skill.toLowerCase())) {
+          extractedSkills.push(skill);
+        }
+      });
+    } catch (error) {
+      console.error('参考URLデータ解析エラー:', error);
+    }
+    
+    return {
+      url,
+      title: title || url,
+      content: content || '内容を取得できませんでした',
+      keywords,
+      extractedSkills: [...new Set(extractedSkills)],
+      lastScraped: new Date().toISOString()
     };
   }
   

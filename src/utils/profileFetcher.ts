@@ -1,9 +1,17 @@
-
 import { ProfileData } from '@/pages/Editor';
-import { FirecrawlService, ScrapedProfileData } from './FirecrawlService';
+import { FirecrawlService, ScrapedProfileData, ScrapedReferenceData } from './FirecrawlService';
 
-export const fetchProfileData = async (url: string): Promise<ProfileData> => {
-  console.log(`Attempting to fetch profile data from URL: ${url}`);
+export interface FetchedData {
+  profileData: ProfileData;
+  referenceData: ScrapedReferenceData[];
+}
+
+export const fetchProfileData = async (
+  xProfileUrl: string, 
+  referenceUrls: string[] = []
+): Promise<FetchedData> => {
+  console.log(`Attempting to fetch profile data from X URL: ${xProfileUrl}`);
+  console.log(`Additional reference URLs: ${referenceUrls.join(', ')}`);
   
   try {
     // APIキーがあるか確認
@@ -12,15 +20,44 @@ export const fetchProfileData = async (url: string): Promise<ProfileData> => {
       throw new Error('APIキーが設定されていません');
     }
     
-    // スクレイピングを実行
-    const scrapedData = await FirecrawlService.extractProfileData(url);
-    return scrapedData;
+    // Xプロフィールをスクレイピング
+    const scrapedProfileData = await FirecrawlService.extractProfileData(xProfileUrl);
+    
+    // 参考URLをスクレイピング
+    const referenceDataPromises = referenceUrls
+      .filter(url => url.trim())
+      .map(url => FirecrawlService.extractReferenceData(url)
+        .catch(error => {
+          console.error(`参考URL ${url} のスクレイピングに失敗:`, error);
+          return null;
+        })
+      );
+    
+    const referenceDataResults = await Promise.all(referenceDataPromises);
+    const validReferenceData = referenceDataResults.filter(Boolean) as ScrapedReferenceData[];
+    
+    // 参考URLから抽出したスキルを統合
+    if (validReferenceData.length > 0) {
+      const additionalSkills = validReferenceData.flatMap(data => data.extractedSkills);
+      const uniqueSkills = [...new Set([...scrapedProfileData.skills, ...additionalSkills])];
+      
+      // 最大15個のスキルに制限
+      scrapedProfileData.skills = uniqueSkills.slice(0, 15);
+    }
+    
+    return {
+      profileData: scrapedProfileData,
+      referenceData: validReferenceData
+    };
   } catch (error) {
     console.error('プロフィール取得エラー:', error);
     
     // エラーがある場合はモックデータを生成
     console.log('モックデータを使用します');
-    return generateMockProfileData(url);
+    return {
+      profileData: generateMockProfileData(xProfileUrl),
+      referenceData: referenceUrls.map(url => generateMockReferenceData(url))
+    };
   }
 };
 
@@ -49,6 +86,32 @@ const generateMockProfileData = (url: string): ProfileData => {
     skills: generateRandomSkills(),
     recentPosts: generateRandomPosts(username),
   };
+};
+
+// 参考URLのモックデータ生成関数
+const generateMockReferenceData = (url: string): ScrapedReferenceData => {
+  try {
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname.replace('www.', '');
+    
+    return {
+      url,
+      title: `${domain.charAt(0).toUpperCase() + domain.slice(1)} - Mock Content`,
+      content: `This is mock content for ${url}. In a real implementation, this would be scraped from the reference URL.`,
+      keywords: ['technology', 'programming', 'portfolio', 'skills'],
+      extractedSkills: generateRandomSkills().slice(0, 5),
+      lastScraped: new Date().toISOString()
+    };
+  } catch (error) {
+    return {
+      url,
+      title: 'Mock Reference',
+      content: 'Mock content for invalid URL',
+      keywords: [],
+      extractedSkills: [],
+      lastScraped: new Date().toISOString()
+    };
+  }
 };
 
 // ヘルパー関数（モックデータ生成用）
